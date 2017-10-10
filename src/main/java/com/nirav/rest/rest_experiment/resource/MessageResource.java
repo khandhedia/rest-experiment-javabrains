@@ -1,10 +1,9 @@
 package com.nirav.rest.rest_experiment.resource;
 
-import com.nirav.rest.rest_experiment.beans.MessageFilterBean;
+import com.nirav.rest.rest_experiment.exceptions.DataNotFoundException;
 import com.nirav.rest.rest_experiment.model.Message;
 import com.nirav.rest.rest_experiment.service.MessageService;
 
-import javax.ws.rs.BeanParam;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -14,7 +13,12 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 
 @Path("/messages")
@@ -36,7 +40,7 @@ public class MessageResource
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public List<Message> getAllMessages(@QueryParam("year") int year, @QueryParam("start") int start, @QueryParam("size") int size)
+    public List<Message> getAllMessages(@QueryParam("year") int year, @QueryParam("start") int start, @QueryParam("size") int size, @Context UriInfo uriInfo)
     {
         if(year > 0)
         {
@@ -48,7 +52,14 @@ public class MessageResource
             return messageService.getAllMessagesPaginated(start, size);
         }
 
-        return messageService.getAllMessages();
+        List<Message> allMessages = messageService.getAllMessages();
+        for (Message message : allMessages)
+        {
+            message.addLink(uriInfo.getBaseUriBuilder().path(MessageResource.class).path(MessageResource.class, "getMessage").resolveTemplate("id", message.getId()).build().toString(), "self");
+        }
+
+        return allMessages;
+
     }
 
 /*
@@ -83,9 +94,13 @@ public class MessageResource
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Message addMessage(Message message)
+    public Response addMessage(Message message, @Context UriInfo uriInfo) throws URISyntaxException
     {
-        return messageService.addMessage(message);
+        Message newMessage = messageService.addMessage(message);
+        //return Response.status(Response.Status.CREATED).entity(newMessage).build();
+        //return Response.created(new URI("/webapi/messages/2" + newMessage.getId())).entity(newMessage).build();
+        //return Response.created(uriInfo.getAbsolutePathBuilder().path(String.valueOf(newMessage.getId())).build()).entity(newMessage).build();
+        return Response.created(uriInfo.getRequestUriBuilder().path(String.valueOf(newMessage.getId())).build()).entity(newMessage).build();
     }
 
     @PUT
@@ -101,9 +116,14 @@ public class MessageResource
     @GET
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Message getMessage(@PathParam("id") int id)
+    public Message getMessage(@PathParam("id") int id , @Context UriInfo uriInfo)
     {
-        return messageService.getMessage(id);
+        Message message = messageService.getMessage(id);
+        if(message == null)
+            throw new DataNotFoundException("Message not found");
+
+        message.addLink(uriInfo.getBaseUriBuilder().path(MessageResource.class).path(MessageResource.class, "getMessage").resolveTemplate("id", id).build().toString(), "self");
+        return message;
     }
 
     @DELETE
@@ -114,4 +134,11 @@ public class MessageResource
         return messageService.removeMessage(id);
     }
 
+
+    @Path("/{id}/comments/")
+    @Produces(MediaType.APPLICATION_JSON)
+    public CommentSubResource getCommentSubResource()
+    {
+        return new CommentSubResource();
+    }
 }

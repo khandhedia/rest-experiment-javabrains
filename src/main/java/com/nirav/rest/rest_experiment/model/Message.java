@@ -1,7 +1,12 @@
 package com.nirav.rest.rest_experiment.model;
 
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @XmlRootElement
 public class Message
@@ -10,6 +15,8 @@ public class Message
     private String message;
     private String author;
     private Date created;
+    private Map<Integer, Comment> commentsMap = new HashMap();
+    private List<Link> links = new ArrayList<>();
 
     public Message()
     {
@@ -61,6 +68,34 @@ public class Message
     public void setCreated(Date created)
     {
         this.created = created;
+    }
+
+    //XmlTransient will ensure that when XML response for Message is sent, it will ignore the commentsMap.
+    //Good thing is, JSON also honours this annotation and hence, it will be ignored similarly for JSON as well.
+    @XmlTransient
+    public Map<Integer, Comment> getCommentsMap()
+    {
+        return commentsMap;
+    }
+
+    public void setCommentsMap(Map<Integer, Comment> commentsMap)
+    {
+        this.commentsMap = commentsMap;
+    }
+
+    public List<Link> getLinks()
+    {
+        return links;
+    }
+
+    public void setLinks(List<Link> links)
+    {
+        this.links = links;
+    }
+
+    public void addLink(String uri, String type)
+    {
+        this.links.add(new Link(uri, type));
     }
 
     @Override
